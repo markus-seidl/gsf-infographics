@@ -1,91 +1,89 @@
 import math
 import copy
 from collections import namedtuple
-
-import cairo
-
-Point = namedtuple('Point', 'x y')
+from domain import Point, BlockDescription
+from draw import *
+import svg
+from textwrap import dedent
+import constants
 
 WIDTH, HEIGHT = 1024, 1024
-CO2_SIZE = Point(10, 10)
-CO2_SPACING_1 = Point(3, 3)
-CO2_SPACING_2 = Point(0, 0)
 
 
-class Point:
-    def __init__(self, x: int, y: int):
-        self.x = x
-        self.y = y
-
-    def __add__(self, other):
-        return Point(
-            self.x + other.x,
-            self.y + other.y
-        )
-
-
-# https://pycairo.readthedocs.io/en/latest/reference/index.html
-
-def draw_co2_block(c: cairo.Context, position: Point, count: Point):
-    co2_pos = copy.copy(position)
-
-    for x in range(0, count.x):
-        for y in range(0, count.y):
-            if y % 6 == 5:
-                co2_pos.y += CO2_SPACING_2.y
-            else:
-                co2_pos.y += CO2_SPACING_1.y
-
-            draw_co2_single(c, co2_pos)
-            co2_pos.y += CO2_SIZE.y
-
-        if x % 6 == 5:
-            co2_pos.x += CO2_SPACING_2.x
-        else:
-            co2_pos.x += CO2_SPACING_1.x
-        co2_pos.x += CO2_SIZE.x
-        co2_pos.y = position.y
+def generate_styles() -> []:
+    return [svg.Style(
+        text=dedent("""
+        text {
+            font-size: """ + str(constants.FONT_SIZE) + """
+            
+        }
+        .bold {
+            font-weight: bold;
+        }
+        """)
+    )]
 
 
-def draw_co2_single(c: cairo.Context, coords: Point = None):
-    if coords is None:
-        coords = Point(0, 0)
+def generate_one_g_co2() -> []:
+    return [
+        # 6g in carbonated drinks
+        draw_co2_block(Point(100, 0), Point(1, 6), BlockDescription(
+            total=6,
+            display_text=dedent("""1 carbonated drink""")
+        )),
+        # 1 toy balloon filled with exhaled air
+        draw_co2_block(Point(250, 0), Point(5, 10), BlockDescription(
+            total=49,
+            display_text=dedent("""
+            1 toy balloon filled
+            with exhaled air
+            """)
+        )),
+        draw_co2_block(Point(100, 150), Point(1, 6), BlockDescription(
+            total=6,
+            display_text=dedent("""1 dice of dry ice""")
+        )),
+    ]
 
-    c.set_source_rgb(0.0, 0.8, 0.1)  # Solid color
 
-    c.set_line_width(2)
-    c.rectangle(coords.x, coords.y, CO2_SIZE.x, CO2_SIZE.y)
-    c.fill_preserve()
-    c.stroke()
+def generate_one_kg_co2() -> []:
+    return [
+        # 6g in carbonated drinks
+        draw_co2_block(Point(100, 0), Point(2, 6), BlockDescription(
+            total=10,
+            display_text=dedent("""100km in a car"""),
+            unit="kg"
+        )),
+        draw_co2_block(Point(100, 100), Point(2, 3), BlockDescription(
+            total=6,
+            display_text=dedent("""1 cow per day"""),
+            unit="kg"
+        )),
+    ]
+
+
+def metric_group(translate: Point, elements: []) -> []:
+    return [svg.G(
+        elements=elements,
+        transform=[svg.Translate(translate.x, translate.y)],
+    )]
 
 
 if __name__ == "__main__":
-    # surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
-    surface = cairo.SVGSurface("example.svg", WIDTH, HEIGHT)
-    ctx = cairo.Context(surface)
+    elements = generate_styles() + metric_group(
+        # 1g of CO2
+        Point(0, 0), generate_one_g_co2()
+    ) + metric_group(
+        # 1kg of CO2
+        Point(10, 300), generate_one_kg_co2()
+    )
 
-    draw_co2_block(ctx, Point(0, 0), Point(10, 5))
+    picture = svg.SVG(
+        viewBox=svg.ViewBoxSpec(0, 0, WIDTH, HEIGHT),
+        width=WIDTH,
+        height=HEIGHT,
+        elements=elements,
+    )
 
-# pat = cairo.LinearGradient(0.0, 0.0, 0.0, 1.0)
-# pat.add_color_stop_rgba(1, 0.7, 0, 0, 0.5)  # First stop, 50% opacity
-# pat.add_color_stop_rgba(0, 0.9, 0.7, 0.2, 1)  # Last stop, 100% opacity
-#
-# ctx.rectangle(0, 0, 1, 1)  # Rectangle(x0, y0, x1, y1)
-# ctx.set_source(pat)
-# ctx.fill()
-#
-# ctx.translate(0.1, 0.1)  # Changing the current transformation matrix
-#
-# ctx.move_to(0, 0)
-# # Arc(cx, cy, radius, start_angle, stop_angle)
-# ctx.arc(0.2, 0.1, 0.1, -math.pi / 2, 0)
-# ctx.line_to(0.5, 0.1)  # Line to (x,y)
-# # Curve(x1, y1, x2, y2, x3, y3)
-# ctx.curve_to(0.5, 0.2, 0.5, 0.4, 0.2, 0.8)
-# ctx.close_path()
-#
-# ctx.set_source_rgb(0.3, 0.2, 0.5)  # Solid color
-# ctx.set_line_width(0.02)
-# ctx.stroke()
-#
-# surface.write_to_png("example.png")  # Output to PNG
+    with open("example.svg", "w") as f:
+        f.write(str(picture))
