@@ -9,6 +9,8 @@ CO2_SIZE = [10, 10]
 Point = namedtuple('Point', 'x y')
 
 
+# https://pycairo.readthedocs.io/en/latest/reference/index.html
+
 def draw_co2_block(c: cairo.Context, size: Point, coords: Point):
     pass
 
@@ -18,8 +20,10 @@ def draw_co2_single(c: cairo.Context, coords: Point = None):
         coords = Point(0, 0)
 
     c.set_source_rgb(0.0, 0.8, 0.1)  # Solid color
+
     c.set_line_width(2)
     c.rectangle(coords.x, coords.y, CO2_SIZE[0], CO2_SIZE[1])
+    c.fill_preserve()
     c.stroke()
 
 
